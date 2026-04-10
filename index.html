@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夜間的覓食者</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #000;
+            color: white;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-color: #1a1a1a;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.8s ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.8) 100%);
+            pointer-events: none;
+        }
+
+        .character-sprite {
+            position: absolute;
+            bottom: 0;
+            height: 80vh;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            z-index: 10;
+            pointer-events: none;
+            object-fit: contain;
+        }
+
+        #char-player { left: 5%; }
+        #char-rick { right: 5%; }
+
+        /* 場景三：里克置中放大 */
+        .solo-monster {
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) !important;
+            height: 95vh !important;
+        }
+
+        .dialogue-box {
+            position: relative;
+            width: 96%;
+            max-width: 1200px;
+            background: rgba(15, 15, 20, 0.95);
+            border: 2px solid #eab308;
+            border-radius: 15px;
+            padding: 30px;
+            min-height: 180px;
+            margin-bottom: 20px;
+            z-index: 20;
+            cursor: pointer;
+            box-shadow: 0 0 50px rgba(0,0,0,1);
+        }
+
+        .speaker-name {
+            position: absolute;
+            top: -20px;
+            left: 40px;
+            background: #eab308;
+            color: #000;
+            font-weight: bold;
+            padding: 6px 45px;
+            border-radius: 8px;
+            font-size: 1.5rem;
+        }
+
+        .choices-container {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 85%;
+            max-width: 500px;
+            z-index: 50;
+        }
+
+        .choice-button {
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #eab308;
+            color: #eab308;
+            padding: 22px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        .choice-button:hover {
+            background: #eab308;
+            color: #000;
+            transform: scale(1.05);
+        }
+
+        .start-screen {
+            position: absolute;
+            inset: 0;
+            background-color: #000;
+            background-image: url('street.png');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        #rating-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 500;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .achievement-popup {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #eab308;
+            color: #000;
+            padding: 15px 45px;
+            border-radius: 50px;
+            font-weight: bold;
+            z-index: 100;
+            animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: translate(-50%, -100px); opacity: 0; }
+            60% { transform: translate(-50%, 15px); opacity: 1; }
+            100% { transform: translate(-50%, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 開始畫面 -->
+<div id="start-screen" class="start-screen">
+    <div class="bg-black/85 p-16 rounded-3xl border-2 border-yellow-600 text-center backdrop-blur-md">
+        <h1 class="text-7xl font-bold mb-6 text-yellow-500">夜間的覓食者</h1>
+        <p class="text-gray-400 mb-12 text-xl">請選擇角色性別以開始冒險</p>
+        <div class="flex gap-10 justify-center">
+            <button onclick="startGame('boy')" class="bg-blue-900/60 hover:bg-blue-700 px-14 py-6 rounded-2xl text-2xl font-bold border border-blue-400 transition-all">男主角</button>
+            <button onclick="startGame('girl')" class="bg-pink-900/60 hover:bg-pink-700 px-14 py-6 rounded-2xl text-2xl font-bold border border-pink-400 transition-all">女主角</button>
+        </div>
+    </div>
+</div>
+
+<!-- 評分畫面 (遊戲結束時觸發) -->
+<div id="rating-modal">
+    <div class="bg-zinc-900 p-12 rounded-3xl border-2 border-yellow-500 text-center w-full max-w-lg shadow-2xl">
+        <h2 class="text-4xl font-bold mb-4 text-yellow-500">遊戲結束</h2>
+        <p class="text-gray-300 mb-8 text-xl">感謝遊玩！請給予這趟覓食之旅一個評價：</p>
+        <div class="flex justify-center gap-4 mb-10">
+            <button onclick="submitRating(1)" class="text-5xl grayscale hover:grayscale-0 hover:scale-110 transition">⭐</button>
+            <button onclick="submitRating(2)" class="text-5xl grayscale hover:grayscale-0 hover:scale-110 transition">⭐</button>
+            <button onclick="submitRating(3)" class="text-5xl grayscale hover:grayscale-0 hover:scale-110 transition">⭐</button>
+            <button onclick="submitRating(4)" class="text-5xl grayscale hover:grayscale-0 hover:scale-110 transition">⭐</button>
+            <button onclick="submitRating(5)" class="text-5xl grayscale hover:grayscale-0 hover:scale-110 transition">⭐</button>
+        </div>
+        <div id="loading-status" class="text-yellow-500 text-lg font-bold hidden animate-pulse">正在同步數據至雲端...</div>
+    </div>
+</div>
+
+<!-- 遊戲主體 -->
+<div id="game-container" class="game-container hidden">
+    <div class="overlay"></div>
+    <img id="char-player" class="character-sprite opacity-0" src="">
+    <img id="char-rick" class="character-sprite opacity-0" src="">
+    <div id="dialogue-box" class="dialogue-box" onclick="nextStep()">
+        <div id="speaker" class="speaker-name"></div>
+        <div id="text" class="text-2xl leading-relaxed"></div>
+        <div class="text-yellow-500/30 text-sm mt-8 text-right italic font-bold">點擊螢幕繼續故事...</div>
+    </div>
+    <div id="choices" class="choices-container hidden"></div>
+    <div id="achievement-container"></div>
+</div>
+
+<script>
+    // 已自動填入你提供的 GAS 部署網址
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyGlU3KJ6ORso-B9oBYc1oAOKKACACEqP90b7JXjkXyuEWSs0S38UiX8PQoGyjPN7wQuQ/exec";
+
+    let playerGender = 'boy';
+    let currentStepIndex = 0;
+    let currentSceneData = [];
+    let lastAchievement = "無";
+
+    // 資源設定：副檔名全部改為 .png
+    const assets = {
+        bg: { room: 'room.png', restaurant: 'restaurant.png', bathroom: 'bathroom.png', kitchen: 'kitchen.png', street: 'street.png' },
+        rick: { one: 'rickone.png', two: 'ricktwo.png', three: 'rickthree.png' },
+        player: { boyone: 'boyone.png', boytwo: 'boytwo.png', girlone: 'girlone.png', girltwo: 'girltwo.png' }
+    };
+
+    const story = {
+        "start": [
+            { bg: "room", speaker: "旁白", text: "深夜裡電腦主機運作的聲音跟滑鼠的點擊聲顯得格外大聲。" },
+            { bg: "room", speaker: "旁白", text: "過沒多久，你的肚子開始咕咕作響。", showPlayer: "one", choice: "A" }
+        ],
+        "A1": [
+            { bg: "restaurant", speaker: "旁白", text: "踏入店裡店員那活潑喊話充滿整間餐廳。" },
+            { bg: "restaurant", speaker: "偉大至上的客人醬", text: "大夜班的也太有精神了吧。", showPlayer: "one" },
+            { bg: "restaurant", speaker: "里克", text: "歡迎光臨快樂速食店！今天想來點什麼呢？", showPlayer: "one", showRick: "one", choice: "B1" }
+        ],
+        "A1_SUCCESS": [
+            { bg: "restaurant", speaker: "偉大至上的客人醬", text: "我要一份雙層起司牛肉堡、一份炸雞腿，再加上大杯雪碧！", showPlayer: "one", showRick: "one" },
+            { bg: "restaurant", speaker: "里克", text: "好的！這才是深夜該有的樣子！餐點馬上來！", showPlayer: "one", showRick: "one", achievement: "無視熱量的夜間大胃王", end: true }
+        ],
+        "A1_FAIL": [
+            { bg: "restaurant", speaker: "偉大至上的客人醬", text: "這時間吃太罪惡了，點個沙拉吧。", showPlayer: "one", showRick: "one" },
+            { bg: "restaurant", speaker: "里克", text: "（滿臉嫌棄）都出來買消夜了還講究甚麼熱量。", showPlayer: "one", showRick: "two", achievement: "熱量的擁護者", end: true }
+        ],
+        "A2": [
+            { bg: "bathroom", speaker: "旁白", text: "正在刷牙的你突然開始乾嘔，抬頭時鏡子裡照映的不是你...", showPlayer: "two" },
+            { bg: "bathroom", speaker: "旁白", text: "而是身穿速食店制服的奇怪男子。", showRick: "three", rickSolo: true }, 
+            { bg: "bathroom", speaker: "偉大至上的客人醬", text: "啊啊啊啊！你是誰啊啊啊啊！", showRick: "three", rickSolo: true },
+            { bg: "bathroom", speaker: "里克", text: "為什麼不來速食餐廳？為什麼...", showRick: "three", rickSolo: true, achievement: "詭異的店員", end: true }
+        ],
+        "A3": [
+            { bg: "kitchen", speaker: "旁白", text: "你打開冰箱拿出了一盒優格跟一些水果。", showPlayer: "two" },
+            { bg: "kitchen", speaker: "偉大至上的客人醬", text: "唉，剛剛應該去速食店的。", showPlayer: "two", achievement: "不滿足的覓食者", end: true }
+        ]
+    };
+
+    const choiceData = {
+        "A": [{ text: "心動不如行動", target: "A1" }, { text: "刷牙睡覺", target: "A2" }, { text: "比起吃速食我更想自己煮", target: "A3" }],
+        "B1": [{ text: "「來都來了，多吃一點。」", target: "A1_SUCCESS" }, { text: "「點個沙拉吧。」", target: "A1_FAIL" }]
+    };
+
+    function startGame(gender) {
+        playerGender = (gender === 'boy') ? "男" : "女";
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-container').classList.remove('hidden');
+        loadScene("start");
+    }
+
+    function loadScene(key) {
+        currentSceneData = story[key];
+        currentStepIndex = 0;
+        updateUI();
+    }
+
+    function updateUI() {
+        const step = currentSceneData[currentStepIndex];
+        const container = document.getElementById('game-container');
+        const pImg = document.getElementById('char-player');
+        const rImg = document.getElementById('char-rick');
+        const speaker = document.getElementById('speaker');
+        const text = document.getElementById('text');
+
+        container.style.backgroundImage = `url('${assets.bg[step.bg]}')`;
+        const genderKey = (playerGender === "男") ? "boy" : "girl";
+        
+        if (step.showPlayer && !step.rickSolo) {
+            pImg.src = assets.player[genderKey + step.showPlayer];
+            pImg.classList.remove('opacity-0');
+        } else {
+            pImg.classList.add('opacity-0');
+        }
+
+        if (step.showRick) {
+            rImg.src = assets.rick[step.showRick];
+            rImg.classList.remove('opacity-0');
+            if (step.rickSolo) rImg.classList.add('solo-monster');
+            else rImg.classList.remove('solo-monster');
+        } else {
+            rImg.classList.add('opacity-0');
+            rImg.classList.remove('solo-monster');
+        }
+
+        speaker.innerText = step.speaker || "";
+        text.innerText = step.text;
+        document.getElementById('choices').classList.add('hidden');
+        document.getElementById('dialogue-box').style.display = "block";
+
+        if (step.achievement) {
+            lastAchievement = step.achievement;
+            showAchievement(step.achievement);
+        }
+    }
+
+    function nextStep() {
+        const step = currentSceneData[currentStepIndex];
+        if (step.choice) { displayChoices(step.choice); return; }
+        if (step.end) { document.getElementById('rating-modal').style.display = 'flex'; return; }
+        if (currentStepIndex < currentSceneData.length - 1) { currentStepIndex++; updateUI(); }
+    }
+
+    function displayChoices(key) {
+        const choicesDiv = document.getElementById('choices');
+        choicesDiv.innerHTML = "";
+        choiceData[key].forEach(c => {
+            const btn = document.createElement('div');
+            btn.className = "choice-button";
+            btn.innerText = c.text;
+            btn.onclick = (e) => { e.stopPropagation(); loadScene(c.target); };
+            choicesDiv.appendChild(btn);
+        });
+        choicesDiv.classList.remove('hidden');
+        document.getElementById('dialogue-box').style.display = "none";
+    }
+
+    function showAchievement(name) {
+        const container = document.getElementById('achievement-container');
+        const popup = document.createElement('div');
+        popup.className = "achievement-popup";
+        popup.innerHTML = `⭐ 達成成就：${name}`;
+        container.appendChild(popup);
+        setTimeout(() => popup.remove(), 4000);
+    }
+
+    async function submitRating(stars) {
+        const status = document.getElementById('loading-status');
+        status.classList.remove('hidden');
+        const data = { 
+            gender: playerGender, 
+            rating: stars, 
+            achievement: lastAchievement 
+        };
+
+        try {
+            await fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            status.innerText = "數據已寫入試算表！";
+            setTimeout(() => location.reload(), 2000);
+        } catch (e) {
+            status.innerText = "寫入失敗，請確認 GAS 部署設定。";
+            setTimeout(() => location.reload(), 3000);
+        }
+    }
+</script>
+
+</body>
+</html>
